@@ -1,36 +1,31 @@
 import socket
 import utils
 
+HOST = socket.gethostbyname(socket.gethostname())
+PORT = 5050
+ENCODING = 'utf-8'
+
 
 class Client:
 
-    def __init__(self, id, name):
-        self.id = id
+    def __init__(self, name):
         self.name = name
-        self.room = None
-        self.connected = True
-
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.connect((utils.MAIN_HOST, utils.MAIN_PORT))
+        self.sock.connect((HOST, PORT))
 
-    def set_room(self, room):
-        self.room = room
+    def connect(self):
+        self.sock.send(self.name.encode(ENCODING))
 
     def send_message(self, message):
-        self.sock.send(message.encode('utf-8'))
+        self.sock.send(message.encode(ENCODING))
 
-    def is_host(self):
-        return self.room.host.id == self.id
+    def get_message(self):
+        return self.sock.recv(utils.SIZE).decode(ENCODING)
 
-    def disconnect(self):
-        self.connected = False
-        self.room.delete_user(self)
-        self.sock.close()
-
-
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.connect((HOST, PORT))
-
-client_name = input("Whats' tou your name?")
-sock.send(client_name.encode('utf-8'))
-print(sock.recv(1024).decode('utf-8'))
+#
+# sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# sock.connect((HOST, PORT))
+#
+# client_name = input("Whats' tou your name?")
+# sock.send(client_name.encode('utf-8'))
+# print(sock.recv(1024).decode('utf-8'))

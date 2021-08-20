@@ -1,13 +1,28 @@
 import socket
 import functools
 import threading
+import time
 
-import client as cl
+import client_server as cl
 import utils
 from room import Room
 
 HOST = socket.gethostbyname(socket.gethostname())
 PORT = 5050
+
+DEBUG = True
+
+
+def log(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        print('Calling {} with {}'.format(func.__name__, args))
+        return func(*args, **kwargs)
+
+    if DEBUG:
+        return wrapper
+
+    return func
 
 
 def singleton(cls):
@@ -53,49 +68,74 @@ class Server:
         self.server.bind((HOST, PORT))
         self.server.listen()
 
+        self.admin = cl.ClientServer(-1, 'ADMIN', None)
+        self.hub = Room(-1, self.admin, 'HUB')
+
     def run(self):
         while True:
             sock, addr = self.server.accept()
-            name = ''
-            self.create_user(sock, name)
-            thread = threading.Thread(target=self.handle_user, args=(sock, addr))
+            name = sock.recv(utils.SIZE).decode(utils.ENCODING)
+
+            user = self.create_user(name, sock)
+            self.send_room_list(user)
+
+            thread = threading.Thread(target=self.handle_user, args=(user, sock, addr))
             thread.start()
 
     def handle_user(self, user, sock, addr):
         while user.connected:
             message = sock.recv(utils.SIZE).decode(utils.ENCODING).strip()
+            print('[{}]: {}'.format(user.name, message))
             if message.startswith('!'):
-                self.process_command(message[1:], user)
+                params = message.split()
+                self.process_command(params, user)
             else:
-                for user_id, user_ins, user_socket in self.connected_users.items():
-                    if user_id != user.id and user_ins.room == user.room:
-                        self.send_message(user, message)
+                for other_user_id, other_user in self.connected_users.items():
+                    if other_user_id != user.id and other_user.room == user.room:
+                        self.send_message(user.name, other_user, message)
 
-    def process_command(self, command, user):
-        if command == 'list':
+    @log
+    def process_command(self, params, user):
+        command = params[0]
+        if command == '!list':
             self.send_room_list(user)
-        elif command == 'exit':
+        elif command == '!exit':
             user.disconnect()
-        elif command == 'connect':
+        elif command == '!connect':
             pass
-        elif command == 'create':
-            name, *password = command.split()[1:]
-            self.create_room(user, name, password)
-        elif command == 'kick' and user.is_host():
-            command, *username = command.split()
-            user.room.delete_user(*username)
+        elif command == '!create':
+            name = params[1]
+            self.create_room(user, name)
+        elif command == '!kick' and user.is_host():
+            username = params[1]
+            user.room.delete_user(username)
 
-    def create_user(self, sock, name):
+    @log
+    def create_user(self, name, sock):
         id = self.USER_ID
-        user = cl.Client(id, name)
-        self.connected_users[id] = user
 
-    def create_room(self, user, name, password):
+        user = cl.ClientServer(id, name, sock)
+        user.set_room(self.hub)
+
+        self.connected_users[id] = user
+        self.USER_ID += 1
+
+        return user
+
+    @log
+    def create_room(self, user, name, password=None):
         id = self.ROOM_ID
-        room = Room(id, name, password)
+
+        room = Room(id, user, name, password)
         room.add_user(user)
+
         self.rooms[id] = room
         self.ROOM_ID += 1
+
+        return room
+
+    def connect_user_to_room(self, user):
+        pass
 
     def disconnect_user(self, user):
         pass
@@ -103,13 +143,15 @@ class Server:
     def kick_user(self, user):
         pass
 
+    @log
     def send_room_list(self, user):
         for room in self.rooms.values():
-            self.send_message(user, room.name)
+            self.send_message('SERVER', user, room.name)
 
-    def send_message(self, user, message):
+    @log
+    def send_message(self, sender_name, user, message):
         sock = user.sock
-        message_to_send = '[{}]: {}'.format(user.name, message)
+        message_to_send = '\n[{}]: {}\n'.format(sender_name, message)
         sock.send(message_to_send.encode(utils.ENCODING))
 
 # server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

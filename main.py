@@ -2,6 +2,8 @@ import threading
 
 import client as cl
 import server as sv
+import curses
+from curses.textpad import Textbox
 
 
 # def mainloop(user):
@@ -22,6 +24,7 @@ import server as sv
 #     user = cl.Client(username)
 #     mainloop(user)
 
+
 def sending(user):
     while True:
         message = input('[{}]: '.format(user.name))
@@ -41,11 +44,13 @@ def test():
         server = sv.Server()
         server.run()
     else:
-        username = input('Enter your nickname: ')
+        username = input('Enter you name: ')
         user = cl.Client(username)
         user.connect()
+
         first = threading.Thread(target=sending, args=(user,))
         second = threading.Thread(target=receiving, args=(user,))
+
         first.start()
         second.start()
 

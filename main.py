@@ -1,58 +1,50 @@
-import threading
 import sys
-import client as cl
-import server as sv
+import threading
 
-
-# def mainloop(user):
-#     message = input('[MESSAGE]: ')
-#     if message.startswith('!'):
-#         process_command(message[1:], user)
-#     else:
-#         user.send_message(message)
-#
-#
-# def main():
-#     global server
-#     command = input('Run server on your computer? [Y/N] ')
-#     if command.lower() == 'y':
-#         server = sv.Server()
-#
-#     username = input('Enter your username: ')
-#     user = cl.Client(username)
-#     mainloop(user)
+from server.server import Server
+from client.client import Client
 
 
 def sending(user):
-    while True:
-        message = input('[{}]: '.format(user.name))
-        user.send_message(message)
-        if message == '!exit':
-            sys.exit()
+    working = True
+    while working:
+        try:
+            message = input('[{}]: '.format(user.name))
+            user.send_message(message)
+            if message == '!exit':
+                sys.exit()
+        except Exception as e:
+            print("[ERROR] can't send message to server")
+            working = False
 
 
 def receiving(user):
-    while True:
-        message = user.get_message()
-        if message:
-            print(message)
+    working = True
+    while working:
+        try:
+            message = user.get_message()
+            if message:
+                print(message)
+        except Exception as e:
+            print("[ERROR] can't receive message from server")
+            working = False
 
 
 def test():
     command = input('Run server on your computer? [Y/N] ')
     if command.lower() == 'y':
-        server = sv.Server()
-        server.run()
+        chat_server = Server()
+        chat_server.run()
     else:
         username = input('Enter you name: ')
-        user = cl.Client(username)
+        user = Client(username)
         user.connect()
 
-        first = threading.Thread(target=sending, args=(user,))
-        second = threading.Thread(target=receiving, args=(user,))
+        sending_thread = threading.Thread(target=sending, args=(user,))
+        receiving_thread = threading.Thread(target=receiving, args=(user,))
 
-        first.start()
-        second.start()
+        sending_thread.start()
+        receiving_thread.start()
 
 
 if __name__ == '__main__':

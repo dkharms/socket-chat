@@ -4,7 +4,6 @@ class ClientServer:
         self.name = name
         self.sock = sock
         self.address = address
-
         self.room = None
 
     def set_room(self, room):
@@ -19,4 +18,6 @@ class ClientServer:
         self.sock.close()
 
     def __repr__(self):
-        return 'USER | ID: {}, NAME: {}, SOCKET: {}'.format(self.client_id, self.name, self.address)
+        return 'USER | ' \
+               'ID: {}, NAME: {}, ' \
+               'ROOM: {}'.format(self.client_id, self.name, self.room)

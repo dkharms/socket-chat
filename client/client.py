@@ -1,5 +1,5 @@
-import socket
 import utils
+import socket
 
 HOST = socket.gethostbyname(socket.gethostname())
 PORT = 5050
@@ -21,11 +21,3 @@ class Client:
 
     def get_message(self):
         return self.sock.recv(utils.SIZE).decode(ENCODING)
-
-#
-# sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# sock.connect((HOST, PORT))
-#
-# client_name = input("Whats' tou your name?")
-# sock.send(client_name.encode('utf-8'))
-# print(sock.recv(1024).decode('utf-8'))

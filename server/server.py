@@ -1,15 +1,15 @@
+import utils
 import socket
 import functools
 import threading
 
-import utils
-from room import Room
-from client_server import ClientServer
+from .client_server import ClientServer
+from .room import Room
 
 HOST = socket.gethostbyname(socket.gethostname())
 PORT = 5050
 
-DEBUG = True
+LOGGING = True
 
 
 def log(func):
@@ -18,7 +18,7 @@ def log(func):
         print('Calling {} with {}'.format(func.__name__, args))
         return func(*args, **kwargs)
 
-    if DEBUG:
+    if LOGGING:
         return wrapper
 
     return func
@@ -35,23 +35,6 @@ def singleton(cls):
         return instance
 
     return wrapper
-
-
-class IdField:
-
-    def __init__(self):
-        self.value = 0
-
-    def __set_name__(self, owner, name):
-        self.name = name
-
-    def __get__(self, instance, owner):
-        value = getattr(instance, self.name)
-
-        return value
-
-    def __set__(self, instance, value):
-        setattr(instance, self.name, value)
 
 
 @singleton
@@ -75,7 +58,8 @@ class Server:
             sock, address = self.server.accept()
             name = sock.recv(utils.SIZE).decode(utils.ENCODING)
             user = self.create_user(name, sock, address)
-            thread = threading.Thread(target=self.handle_user, args=(user, sock, address))
+            thread = threading.Thread(
+                target=self.handle_user, args=(user, sock, address))
             thread.start()
 
     def handle_user(self, user: ClientServer, sock, address):
@@ -103,7 +87,10 @@ class Server:
             self.send_room_list(user)
         elif command == '!create':
             name = params[1]
-            self.create_room(user, name)
+            password = None
+            if len(params) == 3:
+                password = params[2]
+            self.create_room(user, name, password)
         elif command == '!connect':
             room_name = params[1]
             self.connect_user_to_room(user, room_name)
@@ -119,10 +106,8 @@ class Server:
     @log
     def create_user(self, name: str, sock, address):
         user_id = self.USER_ID
-
         user = ClientServer(user_id, name, sock, address)
         self.hub.add_user(user)
-
         self.connected_users[user_id] = user
         self.USER_ID += 1
 
@@ -131,20 +116,26 @@ class Server:
     @log
     def create_room(self, user: ClientServer, name: str, password=None):
         room_id = self.ROOM_ID
-
-        room = Room(room_id, user, name, password)
-        room.add_user(user)
-
-        self.rooms[room_id] = room
+        chat_room = Room(room_id, user, name, password)
+        chat_room.add_user(user)
+        self.rooms[room_id] = chat_room
         self.ROOM_ID += 1
 
-        return room
+        return chat_room
 
     @log
     def connect_user_to_room(self, user: ClientServer, room_name: str):
-        room = self.find_room_by_name(room_name)
-        if room:
-            room.add_user(user)
+        chat_room = self.find_room_by_name(room_name)
+        if chat_room:
+            password = None
+            if chat_room.password:
+                message = 'enter password for [{}] room'.format(room_name)
+                self.send_message('SERVER', user, message)
+                password = user.sock.recv(utils.SIZE).decode(utils.ENCODING).strip()
+            if password == chat_room.password:
+                current_room = user.room
+                current_room.delete_user(user.client_id)
+                chat_room.add_user(user)
         else:
             message = 'room with [{}] name not found'.format(room_name)
             self.send_message('SERVER', user, message)
@@ -162,7 +153,8 @@ class Server:
     def kick_user(self, username: str, host: ClientServer):
         user_to_kick = self.find_user_by_name(username)
         if user_to_kick:
-            message = 'user [{}] was kicked by [{}]'.format(username, host.name)
+            message = 'user [{}] was kicked by [{}]'.format(
+                username, host.name)
             self.disconnect_user(user_to_kick, message)
         else:
             message = 'user with name [{}] not found'.format(username)
@@ -170,8 +162,8 @@ class Server:
 
     @log
     def send_room_list(self, user: ClientServer):
-        for room in self.rooms.values():
-            self.send_message('SERVER', user, room.name)
+        for chat_room in self.rooms.values():
+            self.send_message('SERVER', user, chat_room.name)
 
     @log
     def send_message(self, sender_name: str, user: ClientServer, message: str):
@@ -189,25 +181,11 @@ class Server:
 
     @log
     def find_room_by_name(self, room_name: str):
-        for room in self.rooms.values():
-            if room.name == room_name:
-                return room
+        for chat_room in self.rooms.values():
+            if chat_room.name == room_name:
+                return chat_room
 
         return None
 
     def __repr__(self):
         return 'SERVER | SOCKET: {}'.format((HOST, PORT))
-
-# server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# server.bind((HOST, PORT))
-# server.listen()
-#
-# while True:
-#     sock, addr = server.accept()
-#     print('[CONNECTION] Connected to {}!'.format(addr))
-#
-#     message = sock.recv(1024).decode('utf-8')
-#     print('[EVENT] Message from {} is {}.'.format(addr, message))
-#
-#     sock.send('[SERVER] Got you message, {}!'.format(addr).encode('utf-8'))
-#     sock.close()

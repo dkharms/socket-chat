@@ -12,7 +12,6 @@ class Room:
         user.set_room(self)
 
     def delete_user(self, client_id):
-        print(self.participants)
         user = list(filter(lambda x: x.client_id == client_id, self.participants))
         if len(user) == 1:
             self.participants.remove(user[0])
@@ -21,4 +20,4 @@ class Room:
         return self.room_id == other.room_id
 
     def __repr__(self):
-        return 'ROOM | ID: {}, NAME: {}, HOST: {}'.format(self.room_id, self.name, self.host)
+        return 'ROOM | ID: {}, NAME: {}'.format(self.room_id, self.name)

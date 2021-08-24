@@ -19,3 +19,6 @@ class Room:
 
     def __eq__(self, other):
         return self.room_id == other.room_id
+
+    def __repr__(self):
+        return 'ROOM | ID: {}, NAME: {}, HOST: {}'.format(self.room_id, self.name, self.host)

@@ -1,9 +1,7 @@
 import threading
-
+import sys
 import client as cl
 import server as sv
-import curses
-from curses.textpad import Textbox
 
 
 # def mainloop(user):
@@ -29,6 +27,8 @@ def sending(user):
     while True:
         message = input('[{}]: '.format(user.name))
         user.send_message(message)
+        if message == '!exit':
+            sys.exit()
 
 
 def receiving(user):

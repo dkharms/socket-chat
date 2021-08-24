@@ -79,7 +79,8 @@ class Server:
             thread.start()
 
     def handle_user(self, user: ClientServer, sock, address):
-        while user.connected:
+        running = True
+        while running:
             try:
                 message = sock.recv(utils.SIZE).decode(utils.ENCODING).strip()
                 print('[{}]: {}'.format(user.name, message))
@@ -91,7 +92,9 @@ class Server:
                         if other_user_id != user.client_id and other_user.room == user.room:
                             self.send_message(user.name, other_user, message)
             except Exception as e:
-                print(e)
+                message = '[SERVER]: connection with {} is terminated'.format(user)
+                print(message)
+                running = False
 
     @log
     def process_command(self, params, user: ClientServer):
@@ -173,7 +176,7 @@ class Server:
     @log
     def send_message(self, sender_name: str, user: ClientServer, message: str):
         sock = user.sock
-        message_to_send = '\n[{}]: {}\n'.format(sender_name, message)
+        message_to_send = '[{}]: {}'.format(sender_name, message)
         sock.send(message_to_send.encode(utils.ENCODING))
 
     @log
@@ -191,6 +194,9 @@ class Server:
                 return room
 
         return None
+
+    def __repr__(self):
+        return 'SERVER | SOCKET: {}'.format((HOST, PORT))
 
 # server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 # server.bind((HOST, PORT))
